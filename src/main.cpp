@@ -25,8 +25,8 @@ int main() {
     else{
       std::cout<< input << ": command not found" << std::endl;
     }
-    std::cout<< "$ ";
   }
+  std::cout<< "$ ";
   }
   
 }
