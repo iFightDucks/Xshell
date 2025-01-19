@@ -46,6 +46,11 @@ void execute_command(const std::string& command, const std::string& args) {
         return;
     }
 
+    std::filesystem::path fs_path(path);
+    std::string program_name = fs_path.filename().string();
+
+    std::cout << "Arg #0 (program name): " << program_name << std::endl;
+
     std::string full_command = path + " " + args;
 
     std::array<char, 128> buffer;
