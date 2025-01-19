@@ -2,10 +2,13 @@
 #include <string>
 #include <sstream>
 #include <filesystem>
+#include <cstdlib>
+#include <array>
 
 using namespace std;
 
-enum validCommands {
+enum validCommands
+{
     echo,
     cd,
     exit0,
@@ -22,18 +25,13 @@ validCommands isValid(std::string command) {
     return invalid;
 }
 
-
-std::string valid[4] = {"echo", "cd", "exit0"};
-
-
 std::string get_path(std::string command) {
     std::string path_env = std::getenv("PATH");
     std::stringstream ss(path_env);
     std::string path;
-
     while (!ss.eof()) {
         getline(ss, path, ':');
-        string abs_path = path + '/' + command;
+        std::string abs_path = path + '/' + command;
         if (filesystem::exists(abs_path)) {
             return abs_path;
         }
@@ -41,35 +39,60 @@ std::string get_path(std::string command) {
     return "";
 }
 
-int main() {
+void execute_command(const std::string& command, const std::string& args) {
+    std::string path = get_path(command);
+    if (path.empty()) {
+        std::cout << command << " not found\n";
+        return;
+    }
 
+    std::string full_command = path + " " + args;
+
+    std::array<char, 128> buffer;
+    std::string result;
+    FILE* fp = popen(full_command.c_str(), "r");
+    if (fp == nullptr) {
+        std::cerr << "Error executing command\n";
+        return;
+    }
+
+    while (fgets(buffer.data(), buffer.size(), fp) != nullptr) {
+        result += buffer.data();
+    }
+
+    fclose(fp);
+
+    std::cout << result;
+}
+
+int main() {
     bool exit = false;
 
     while (!exit) {
-      
-        std::cout << std::unitbuf;
-        std::cerr << std::unitbuf;
-
         std::cout << "$ ";
         std::string input;
         std::getline(std::cin, input);
 
-        switch (isValid(input)) {
-            case cd:
-  
-                break;
+        if (input == "exit") {
+            exit = true;
+            continue;
+        }
 
-            case echo: {
-                input.erase(0, input.find(" ") + 1); 
+        size_t space_pos = input.find(' ');
+        std::string command = input.substr(0, space_pos);
+        std::string args = (space_pos == std::string::npos) ? "" : input.substr(space_pos + 1);
+
+        switch (isValid(command)) {
+            case cd:
+                break;
+            case echo:
+                input.erase(0, input.find(" ") + 1);
                 std::cout << input << "\n";
                 break;
-            }
-
             case exit0:
                 exit = true;
                 break;
-
-            case type: {
+            case type:
                 input.erase(0, input.find(" ") + 1);
                 if (isValid(input) != invalid) {
                     std::cout << input << " is a shell builtin\n";
@@ -82,12 +105,11 @@ int main() {
                     }
                 }
                 break;
-            }
-
             default:
-
-                std::cout << input << ": command not found\n";
+                execute_command(command, args);
                 break;
         }
     }
+
+    return 0;
 }
