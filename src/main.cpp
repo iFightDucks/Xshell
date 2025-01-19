@@ -16,11 +16,11 @@ int main() {
         std::cout<<cmd<<" not found\n";
       }
     }
-    if(input.substr(0,5) == "type "){
-    if(input.find("echo") == 0){
-      const int ECHO_LEN = 5;
-      std::string text = input.substr(ECHO_LEN);
-      std::cout<< text << std::endl;
+    if(input.substr(0,5) == "echo "){
+      if(input.find("echo") == 0){
+        const int ECHO_LEN = 5;
+        std::string text = input.substr(ECHO_LEN);
+        std::cout<< text << std::endl;
     }
     else{
       std::cout<< input << ": command not found" << std::endl;
