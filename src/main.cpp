@@ -49,6 +49,7 @@ void execute_command(const std::string& command, const std::string& args) {
     std::filesystem::path fs_path(path);
     std::string program_name = fs_path.filename().string();
 
+    std::cout << "Program was passed 2 args (including program name)." << std::endl;
     std::cout << "Arg #0 (program name): " << program_name << std::endl;
 
     std::string full_command = path + " " + args;
