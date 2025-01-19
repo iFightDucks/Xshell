@@ -15,6 +15,8 @@ int main() {
       }else{
         std::cout<<cmd<<" not found\n";
       }
+    }else{
+      std::cout<<input;
     }
     if(input.substr(0,5) == "echo "){
       if(input.find("echo") == 0){
