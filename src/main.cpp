@@ -40,15 +40,8 @@ std::string get_path(std::string command) {
 }
 
 void execute_command(const std::string& command, const std::string& args) {
-    std::string path = get_path(command);
-    if (path.empty()) {
-        std::cout << command << " not found\n";
-        return;
-    }
-
-    std::filesystem::path fs_path(path);
-    std::string program_name = fs_path.filename().string();
-    std::string full_command = path + " " + args;
+    // Pass only the command name to the shell
+    std::string full_command = command + " " + args;
 
     std::array<char, 128> buffer;
     std::string result;
