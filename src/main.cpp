@@ -25,39 +25,32 @@ validCommands isValid(std::string command) {
     return invalid;
 }
 
-std::string get_path(std::string command) {
-    std::string path_env = std::getenv("PATH");
-    std::stringstream ss(path_env);
-    std::string path;
-    while (!ss.eof()) {
-        getline(ss, path, ':');
-        std::string abs_path = path + '/' + command;
-        if (filesystem::exists(abs_path)) {
-            return abs_path;
-        }
-    }
-    return "";
-}
-
 void execute_command(const std::string& command, const std::string& args) {
-    // Pass only the command name to the shell
     std::string full_command = command + " " + args;
 
-    std::array<char, 128> buffer;
-    std::string result;
     FILE* fp = popen(full_command.c_str(), "r");
     if (fp == nullptr) {
-        std::cerr << "Error executing command\n";
+        std::cerr << command << ": command not found\n";
         return;
     }
 
+    std::array<char, 128> buffer;
+    std::string result;
+    bool command_output = false;
+
     while (fgets(buffer.data(), buffer.size(), fp) != nullptr) {
         result += buffer.data();
+        command_output = true;
     }
 
-    fclose(fp);
-
-    std::cout << result;
+    int exit_status = pclose(fp);
+    if (exit_status != 0 && !command_output) {
+        
+        std::cout << command << ": command not found\n";
+    } else {
+        
+        std::cout << result;
+    }
 }
 
 int main() {
@@ -92,12 +85,7 @@ int main() {
                 if (isValid(input) != invalid) {
                     std::cout << input << " is a shell builtin\n";
                 } else {
-                    std::string path = get_path(input);
-                    if (path.empty()) {
-                        std::cout << input << " not found\n";
-                    } else {
-                        std::cout << input << " is " << path << std::endl;
-                    }
+                    std::cout << input << ": command not found\n";
                 }
                 break;
             default:
