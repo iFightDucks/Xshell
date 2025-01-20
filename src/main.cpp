@@ -15,8 +15,10 @@ enum validCommands
     type,
     invalid,
 };
+
 validCommands isValid(std::string command) {
     command = command.substr(0, command.find(" "));
+    if (command.empty()) return invalid; 
     if (command == "echo") return validCommands::echo;
     if (command == "cd") return validCommands::cd;
     if (command == "exit") return validCommands::exit0;
@@ -24,8 +26,8 @@ validCommands isValid(std::string command) {
     return invalid;
 }
 
-
 std::string get_path(std::string command) {
+    if (command.empty()) return ""; 
     std::string path_env = std::getenv("PATH");
     std::stringstream ss(path_env);
     std::string path;
@@ -41,18 +43,17 @@ std::string get_path(std::string command) {
 }
 
 void execute_command(const std::string& command, const std::string& args) {
-    std::string full_command = command + " " + args;
+    std::string full_command = command + " " + args + " 2>/dev/null";
 
     FILE* fp = popen(full_command.c_str(), "r");
     if (fp == nullptr) {
-        std::cerr << command << ": command not found\n";
+        std::cout << command << ": command not found\n"; 
         return;
     }
 
     std::array<char, 128> buffer;
     std::string result;
     bool command_output = false;
-
 
     while (fgets(buffer.data(), buffer.size(), fp) != nullptr) {
         result += buffer.data();
@@ -61,7 +62,7 @@ void execute_command(const std::string& command, const std::string& args) {
 
     int exit_status = pclose(fp);
     if (exit_status != 0 && !command_output) {
-        std::cout << command << ": command not found\n";
+        std::cout << command << ": command not found\n"; 
     } else {
         std::cout << result;
     }
