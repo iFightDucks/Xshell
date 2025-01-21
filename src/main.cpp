@@ -14,6 +14,7 @@ enum validCommands
     exit0,
     type,
     invalid,
+    pwd
 };
 
 validCommands isValid(std::string command) {
@@ -23,6 +24,7 @@ validCommands isValid(std::string command) {
     if (command == "cd") return validCommands::cd;
     if (command == "exit") return validCommands::exit0;
     if (command == "type") return validCommands::type;
+    if(command == "pwd") return validCommands::pwd;
     return invalid;
 }
 
