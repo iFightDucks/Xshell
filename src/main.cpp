@@ -88,8 +88,10 @@ int main() {
         std::string args = (space_pos == std::string::npos) ? "" : input.substr(space_pos + 1);
 
         switch (isValid(command)) {
-            case cd:
+            case cd: {
+                std::filesystem::current_path(args);
                 break;
+            }
 
             case echo:
                 input.erase(0, input.find(" ") + 1);
@@ -112,6 +114,11 @@ int main() {
                         std::cout << input << " is " << path << "\n";
                     }
                 }
+                break;
+            }
+
+            case pwd: {
+                std::cout << std::filesystem::current_path() << "\n";
                 break;
             }
 
