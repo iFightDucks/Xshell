@@ -139,8 +139,6 @@ void execute_command(const std::string& command, const std::string& args) {
             } else {
                 std::cerr << "Error opening file for writing: " << output_file << "\n";
             }
-        } else {
-            std::cout << result;
         }
     }
 }
