@@ -7,8 +7,7 @@
 
 using namespace std;
 
-enum validCommands
-{
+enum validCommands {
     echo,
     cd,
     exit0,
@@ -17,19 +16,19 @@ enum validCommands
     pwd
 };
 
-validCommands isValid(std::string command) {
-    command = command.substr(0, command.find(" "));
-    if (command.empty()) return invalid; 
-    if (command == "echo") return validCommands::echo;
-    if (command == "cd") return validCommands::cd;
-    if (command == "exit") return validCommands::exit0;
-    if (command == "type") return validCommands::type;
-    if(command == "pwd") return validCommands::pwd;
+validCommands isValid(const std::string& command) {
+    std::string cmd = command.substr(0, command.find(" "));
+    if (cmd.empty()) return invalid;
+    if (cmd == "echo") return validCommands::echo;
+    if (cmd == "cd") return validCommands::cd;
+    if (cmd == "exit") return validCommands::exit0;
+    if (cmd == "type") return validCommands::type;
+    if (cmd == "pwd") return validCommands::pwd;
     return invalid;
 }
 
-std::string get_path(std::string command) {
-    if (command.empty()) return ""; 
+std::string get_path(const std::string& command) {
+    if (command.empty()) return "";
     std::string path_env = std::getenv("PATH");
     std::stringstream ss(path_env);
     std::string path;
@@ -44,12 +43,33 @@ std::string get_path(std::string command) {
     return "";
 }
 
+std::string processSingleQuotes(const std::string& input) {
+    std::string result;
+    bool inSingleQuotes = false;
+
+    for (size_t i = 0; i < input.size(); ++i) {
+        if (input[i] == '\'') {
+            inSingleQuotes = !inSingleQuotes;  
+        } else if (inSingleQuotes || input[i] != ' ') {
+            result += input[i];  
+        } else {
+            result += input[i]; 
+        }
+    }
+
+    if (inSingleQuotes) {
+        std::cerr << "Error: unmatched single quote\n";
+    }
+
+    return result;
+}
+
 void execute_command(const std::string& command, const std::string& args) {
     std::string full_command = command + " " + args + " 2>/dev/null";
 
     FILE* fp = popen(full_command.c_str(), "r");
     if (fp == nullptr) {
-        std::cout << command << ": command not found\n"; 
+        std::cerr << command << ": command not found\n";
         return;
     }
 
@@ -64,7 +84,7 @@ void execute_command(const std::string& command, const std::string& args) {
 
     int exit_status = pclose(fp);
     if (exit_status != 0 && !command_output) {
-        std::cout << command << ": command not found\n"; 
+        std::cerr << command << ": command not found\n";
     } else {
         std::cout << result;
     }
@@ -78,10 +98,10 @@ int main() {
         std::string input;
         std::getline(std::cin, input);
 
-        if (input == "exit") {
-            exit = true;
-            continue;
-        }
+        if (input.empty()) continue;
+
+        // Handle single quotes
+        input = processSingleQuotes(input);
 
         size_t space_pos = input.find(' ');
         std::string command = input.substr(0, space_pos);
@@ -114,10 +134,8 @@ int main() {
                 break;
             }
 
-
             case echo:
-                input.erase(0, input.find(" ") + 1);
-                std::cout << input << "\n";
+                std::cout << args << "\n";
                 break;
 
             case exit0:
@@ -125,24 +143,21 @@ int main() {
                 break;
 
             case type: {
-                input.erase(0, input.find(" ") + 1);
-                if (isValid(input) != invalid) {
-                    std::cout << input << " is a shell builtin\n";
+                if (isValid(args) != invalid) {
+                    std::cout << args << " is a shell builtin\n";
                 } else {
-                    std::string path = get_path(input);
+                    std::string path = get_path(args);
                     if (path.empty()) {
-                        std::cout << input << ": not found\n";
+                        std::cout << args << ": not found\n";
                     } else {
-                        std::cout << input << " is " << path << "\n";
+                        std::cout << args << " is " << path << "\n";
                     }
                 }
                 break;
             }
 
             case pwd: {
-                std::string cwd = std::filesystem::current_path();
-                std::string print_cwd = cwd.substr(0, cwd.length());
-                std::cout << print_cwd << "\n";
+                std::cout << std::filesystem::current_path() << "\n";
                 break;
             }
 
