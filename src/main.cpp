@@ -5,6 +5,7 @@
 #include <cstdlib>
 #include <array>
 #include <vector>
+#include <fstream>
 
 using namespace std;
 
@@ -44,58 +45,71 @@ std::string get_path(const std::string& command) {
     return "";
 }
 
-vector<string> split(string &str, char delimiter) 
-{
+vector<string> split(string &str, char delimiter) {
     vector<string> tokens;
     string token = "";
     bool singlequoteopen = false, doublequoteopen = false, escaped = false;
-    for (int i = 0; i < str.size(); i++) 
-    {
+    for (int i = 0; i < str.size(); i++) {
         char ch = str[i];
-        if (escaped)  
-        {  
-            if (doublequoteopen && ch != '"' && ch != '\\') 
-            { 
+        if (escaped) {
+            if (doublequoteopen && ch != '"' && ch != '\\') {
                 token += '\\';
             }
             token += ch;
             escaped = false;
-        } 
-        else if (ch == '\\') 
-        {
-            escaped = true;  
+        } else if (ch == '\\') {
+            escaped = true;
             if(singlequoteopen) token+=ch;
-        } 
-        else if (ch == '\'') 
-        {
+        } else if (ch == '\'') {
             if (!doublequoteopen) singlequoteopen = !singlequoteopen;
-            else token += ch; 
-        } 
-        else if (ch == '"') 
-        {
+            else token += ch;
+        } else if (ch == '"') {
             doublequoteopen = !doublequoteopen;
-        } 
-        else if (ch == delimiter && !singlequoteopen && !doublequoteopen) {
-            if (!token.empty()) 
-            {
+        } else if (ch == delimiter && !singlequoteopen && !doublequoteopen) {
+            if (!token.empty()) {
                 tokens.push_back(token);
                 token.clear();
             }
-        } 
-        else 
-        {
+        } else {
             token += ch;
         }
     }
-    if (!token.empty()) 
-    {
+    if (!token.empty()) {
         tokens.push_back(token);
     }
     return tokens;
 }
 
 void execute_command(const std::string& command, const std::string& args) {
-    std::string full_command = command + " " + args + " 2>/dev/null";
+    std::string full_command = command + " " + args;
+    std::string output_file;
+    bool redirect_output = false;
+    bool append_output = false;
+    bool redirect_stderr = false;
+    bool append_stderr = false;
+
+    size_t redirect_pos = full_command.find('>');
+    if (redirect_pos != std::string::npos) {
+        if (full_command[redirect_pos + 1] == '>') {
+            append_output = true;
+            redirect_pos++;
+        }
+        redirect_output = true;
+        output_file = full_command.substr(redirect_pos + 1);
+        full_command = full_command.substr(0, redirect_pos);
+        output_file.erase(0, output_file.find_first_not_of(" \t"));
+        output_file.erase(output_file.find_last_not_of(" \t") + 1);
+    }
+
+    size_t stderr_pos = full_command.find("2>");
+    if (stderr_pos != std::string::npos) {
+        if (full_command[stderr_pos + 2] == '>') {
+            append_stderr = true;
+            stderr_pos++;
+        }
+        redirect_stderr = true;
+        full_command = full_command.substr(0, stderr_pos);
+    }
 
     FILE* fp = popen(full_command.c_str(), "r");
     if (fp == nullptr) {
@@ -116,7 +130,18 @@ void execute_command(const std::string& command, const std::string& args) {
     if (exit_status != 0 && !command_output) {
         std::cerr << command << ": command not found\n";
     } else {
-        std::cout << result;
+        if (redirect_output) {
+            std::ofstream ofs;
+            ofs.open(output_file, append_output ? std::ios::app : std::ios::out);
+            if (ofs.is_open()) {
+                ofs << result;
+                ofs.close();
+            } else {
+                std::cerr << "Error opening file for writing: " << output_file << "\n";
+            }
+        } else {
+            std::cout << result;
+        }
     }
 }
 
