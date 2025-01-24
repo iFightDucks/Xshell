@@ -7,14 +7,7 @@
 
 using namespace std;
 
-enum validCommands {
-    echo,
-    cd,
-    exit0,
-    type,
-    invalid,
-    pwd
-};
+enum validCommands { echo, cd, exit0, type, invalid, pwd };
 
 validCommands isValid(const std::string& command) {
     std::string cmd = command.substr(0, command.find(" "));
@@ -50,11 +43,11 @@ std::string processQuotes(const std::string& input) {
 
     for (size_t i = 0; i < input.length(); ++i) {
         char c = input[i];
+
         if (escape) {
             if (c == ' ') {
-                result += ' '; 
+                result += ' ';
             } else {
-                result += '\\';
                 result += c;
             }
             escape = false;
@@ -62,25 +55,20 @@ std::string processQuotes(const std::string& input) {
         }
 
         if (c == '\\') {
-            escape = true; 
+            escape = true;
         } else if (c == '\'' && !inDoubleQuote) {
+            result += c;
             inSingleQuote = !inSingleQuote;
         } else if (c == '\"' && !inSingleQuote) {
+            result += c;
             inDoubleQuote = !inDoubleQuote;
         } else {
             result += c;
         }
     }
 
-    if (escape) {
-        result += '\\'; 
-    }
-
     return result;
 }
-
-
-
 
 void execute_command(const std::string& command, const std::string& args) {
     std::string full_command = command + " " + args + " 2>/dev/null";
