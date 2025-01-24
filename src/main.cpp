@@ -107,29 +107,30 @@ void execute_command(const std::string& command, const std::string& args) {
 
     std::array<char, 128> buffer;
     std::string result;
-    bool command_output = false;
 
     while (fgets(buffer.data(), buffer.size(), fp) != nullptr) {
         result += buffer.data();
-        command_output = true;
     }
 
     int exit_status = pclose(fp);
-    if (exit_status != 0 && !command_output) {
-        std::cerr << command << ": command not found\n";
-    } else {
-        if (redirect_output) {
-            std::ofstream ofs;
-            ofs.open(output_file, append_output ? std::ios::app : std::ios::out);
-            if (ofs.is_open()) {
-                ofs << result;
-                ofs.close();
-            } else {
-                std::cerr << "Error opening file for writing: " << output_file << "\n";
-            }
+    if (exit_status != 0) {
+        std::cerr << command << ": command not found or failed\n";
+    }
+
+    if (redirect_output) {
+        std::ofstream ofs;
+        ofs.open(output_file, append_output ? std::ios::app : std::ios::out);
+        if (ofs.is_open()) {
+            ofs << result;
+            ofs.close();
+        } else {
+            std::cerr << "Error opening file for writing: " << output_file << "\n";
         }
+    } else {
+        std::cout << result;
     }
 }
+
 
 int main() {
     bool exit = false;
