@@ -4,6 +4,7 @@
 #include <filesystem>
 #include <cstdlib>
 #include <array>
+#include <vector>
 
 using namespace std;
 
@@ -43,42 +44,54 @@ std::string get_path(const std::string& command) {
     return "";
 }
 
-std::string processQuotes(const std::string& input) {
-    std::string result;
-    bool inSingleQuote = false, inDoubleQuote = false;
-    bool escape = false;
-
-    for (size_t i = 0; i < input.length(); ++i) {
-        char c = input[i];
-
-        if (escape) {
-            result += c;
-            escape = false;
-            continue;
-        }
-
-        if (c == '\\') {
-            escape = true;
-        } else if (c == '\'' && !inDoubleQuote) {
-            inSingleQuote = !inSingleQuote;
-            if (!inSingleQuote) {
-                // End of single quote, add a space if needed
-                if (!result.empty() && result.back() != ' ') {
-                    result += ' ';
-                }
+vector<string> split(string &str, char delimiter) 
+{
+    vector<string> tokens;
+    string token = "";
+    bool singlequoteopen = false, doublequoteopen = false, escaped = false;
+    for (int i = 0; i < str.size(); i++) 
+    {
+        char ch = str[i];
+        if (escaped)  
+        {  
+            if (doublequoteopen && ch != '"' && ch != '\\') 
+            { 
+                token += '\\';
             }
-        } else if (c == '\"' && !inSingleQuote) {
-            inDoubleQuote = !inDoubleQuote;
-        } else if (c == ' ' && !inSingleQuote && !inDoubleQuote) {
-            if (!result.empty() && result.back() != ' ') {
-                result += ' ';
+            token += ch;
+            escaped = false;
+        } 
+        else if (ch == '\\') 
+        {
+            escaped = true;  
+            if(singlequoteopen) token+=ch;
+        } 
+        else if (ch == '\'') 
+        {
+            if (!doublequoteopen) singlequoteopen = !singlequoteopen;
+            else token += ch; 
+        } 
+        else if (ch == '"') 
+        {
+            doublequoteopen = !doublequoteopen;
+        } 
+        else if (ch == delimiter && !singlequoteopen && !doublequoteopen) {
+            if (!token.empty()) 
+            {
+                tokens.push_back(token);
+                token.clear();
             }
-        } else {
-            result += c; // Preserve the character as is
+        } 
+        else 
+        {
+            token += ch;
         }
     }
-
-    return result;
+    if (!token.empty()) 
+    {
+        tokens.push_back(token);
+    }
+    return tokens;
 }
 
 void execute_command(const std::string& command, const std::string& args) {
@@ -149,9 +162,13 @@ int main() {
             }
 
             case echo: {
-                std::string result = processQuotes(input);
-                result.erase(0, result.find(" ") + 1); // Remove the command part
-                std::cout << result << "\n";
+                std::string result = input; 
+                result.erase(0, result.find(" ") + 1); 
+                vector<string> tokens = split(result, ' ');
+                for (const auto& token : tokens) {
+                    std::cout << token << " ";
+                }
+                std::cout << "\n";
                 break;
             }
 
