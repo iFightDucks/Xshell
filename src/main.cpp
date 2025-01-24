@@ -46,44 +46,42 @@ std::string get_path(const std::string& command) {
 std::string processQuotes(const std::string& input) {
     std::string result;
     bool inSingleQuote = false, inDoubleQuote = false;
-    bool escape = false;
+    size_t i = 0;
 
-    for (size_t i = 0; i < input.length(); ++i) {
+    while (i < input.length()) {
         char c = input[i];
-
-        if (escape) {
-            result += c;
-            escape = false;
+        if (c == '\'' && !inDoubleQuote) {
+            inSingleQuote = !inSingleQuote;
+            ++i;
+            continue;
+        } else if (c == '\"' && !inSingleQuote) {
+            inDoubleQuote = !inDoubleQuote;
+            ++i;
             continue;
         }
 
-        
-        if (c == '\\' && i + 1 < input.length() && input[i + 1] == 'n') {
-            result += "\\n"; 
-            ++i;  
-        }
-        else if (c == '\\') {
-            escape = true;  
-        } else if (c == '\'' && !inDoubleQuote) {
-            inSingleQuote = !inSingleQuote;
-            if (!inSingleQuote) {
-                if (!result.empty() && result.back() != ' ') {
-                    result += ' ';
+       
+        if (c == '\\') {
+            if (i + 1 < input.length() && input[i + 1] == '\\') {
+               
+                if (i + 2 < input.length() && input[i + 2] == '\\') {
+                    result += "\\\\\\"; 
+                    i += 3;             
+                    continue;
+                } else {
+                    result += "\\\\"; 
+                    i += 2;         
+                    continue;
                 }
             }
-        } else if (c == '\"' && !inSingleQuote) {
-            inDoubleQuote = !inDoubleQuote;
-        } else if (c == ' ' && !inSingleQuote && !inDoubleQuote) {
-            if (!result.empty() && result.back() != ' ') {
-                result += ' ';
-            }
-        } else {
-            result += c;
         }
+        result += c;
+        ++i;
     }
 
     return result;
 }
+
 
 
 void execute_command(const std::string& command, const std::string& args) {
