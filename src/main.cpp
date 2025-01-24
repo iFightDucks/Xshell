@@ -57,15 +57,16 @@ std::string processQuotes(const std::string& input) {
             continue;
         }
 
+        
         if (c == '\\' && i + 1 < input.length() && input[i + 1] == 'n') {
-            result += "\\n";
-            ++i;  // Skip the next character (n)
-        } else if (c == '\\') {
-            escape = true;
+            result += "\\n"; 
+            ++i;  
+        }
+        else if (c == '\\') {
+            escape = true;  
         } else if (c == '\'' && !inDoubleQuote) {
             inSingleQuote = !inSingleQuote;
             if (!inSingleQuote) {
-                // End of single quote, add a space if needed
                 if (!result.empty() && result.back() != ' ') {
                     result += ' ';
                 }
@@ -83,6 +84,7 @@ std::string processQuotes(const std::string& input) {
 
     return result;
 }
+
 
 void execute_command(const std::string& command, const std::string& args) {
     std::string full_command = command + " " + args + " 2>/dev/null";
