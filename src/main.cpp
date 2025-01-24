@@ -118,7 +118,9 @@ int main() {
             }
 
             case pwd: {
-                std::cout << std::filesystem::current_path() << "\n";
+                std::string cwd = std::filesystem::current_path();
+                std::string print_cwd = cwd.substr(0, cwd.length());
+                std::cout << print_cwd << "\n";
                 break;
             }
 
