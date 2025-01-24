@@ -45,39 +45,26 @@ std::string get_path(const std::string& command) {
 
 std::string processSingleQuotes(const std::string& input) {
     std::string result;
-    bool inSingleQuotes = false;
-    std::string temp;
+    bool inSingleQuote = false, inDoubleQuote = false;
 
-    for (size_t i = 0; i < input.size(); ++i) {
-        if (input[i] == '\'') {
-            inSingleQuotes = !inSingleQuotes;  
-            if (!inSingleQuotes) {
-                
-                result += temp;
-                temp.clear();
+    for (size_t i = 5; i < input.length(); ++i) {
+        char c = input[i];
+
+        if (c == '\'') {
+            inSingleQuote = !inSingleQuote;
+        } else if (c == '\"') {
+            inDoubleQuote = !inDoubleQuote;
+        } else if (c == ' ' && !inSingleQuote && !inDoubleQuote) {
+            if (!result.empty() && result.back() != ' ') {
+                result += ' ';
             }
-        } else if (inSingleQuotes) {
-            
-            temp += input[i];
         } else {
-            
-            if (input[i] == ' ') {
-                result += ' '; 
-            } else {
-                result += input[i];
-            }
+            result += c;
         }
-    }
-
-    if (inSingleQuotes) {
-        std::cerr << "Error: unmatched single quote\n";
-    } else {
-        result += temp; 
     }
 
     return result;
 }
-
 
 void execute_command(const std::string& command, const std::string& args) {
     std::string full_command = command + " " + args + " 2>/dev/null";
@@ -115,8 +102,6 @@ int main() {
 
         if (input.empty()) continue;
 
-        input = processSingleQuotes(input);
-
         size_t space_pos = input.find(' ');
         std::string command = input.substr(0, space_pos);
         std::string args = (space_pos == std::string::npos) ? "" : input.substr(space_pos + 1);
@@ -149,16 +134,8 @@ int main() {
             }
 
             case echo: {
-                std::istringstream iss(args);
-                std::string normalized;
-                std::string word;
-                while (iss >> word) {
-                    if (!normalized.empty()) {
-                        normalized += " ";
-                    }
-                    normalized += word;
-                }
-                std::cout << normalized << "\n";
+                std::string result = processSingleQuotes(input);
+                std::cout << result << "\n";
                 break;
             }
 
