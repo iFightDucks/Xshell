@@ -144,7 +144,7 @@ int main() {
 
             case echo: {
                 std::string result = processQuotes(input);
-                std::cout << "\"" << result << "\"\n";
+                std::cout << result << "\n";
                 break;
             }
 
