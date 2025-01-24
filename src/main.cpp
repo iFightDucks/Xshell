@@ -89,22 +89,31 @@ int main() {
 
         switch (isValid(command)) {
             case cd: {
-    try {
-        if (args.empty()) {
-            const char* home = std::getenv("HOME");
-            if (home) {
-                std::filesystem::current_path(home);
-            } else {
-                std::cerr << "cd: HOME not set\n";
+                try {
+                    if (args.empty() || args == "~") {
+                        const char* home = std::getenv("HOME");
+                        if (home) {
+                            std::filesystem::current_path(home);
+                        } else {
+                            std::cerr << "cd: HOME not set\n";
+                        }
+                    } else if (args[0] == '~') {
+                        const char* home = std::getenv("HOME");
+                        if (home) {
+                            std::string newPath = std::string(home) + args.substr(1);
+                            std::filesystem::current_path(newPath);
+                        } else {
+                            std::cerr << "cd: HOME not set\n";
+                        }
+                    } else {
+                        std::filesystem::current_path(args);
+                    }
+                } catch (const std::filesystem::filesystem_error& e) {
+                    std::cerr << "cd: " << args << ": No such file or directory\n";
+                }
+                break;
             }
-        } else {
-            std::filesystem::current_path(args);
-        }
-    } catch (const std::filesystem::filesystem_error& e) {
-        std::cerr << "cd: " << args << ": No such file or directory\n";
-    }
-    break;
-}
+
 
             case echo:
                 input.erase(0, input.find(" ") + 1);
