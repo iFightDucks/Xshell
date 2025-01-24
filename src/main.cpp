@@ -46,41 +46,39 @@ std::string get_path(const std::string& command) {
 std::string processQuotes(const std::string& input) {
     std::string result;
     bool inSingleQuote = false, inDoubleQuote = false;
-    size_t i = 0;
+    bool escape = false;
 
-    while (i < input.length()) {
+    for (size_t i = 0; i < input.length(); ++i) {
         char c = input[i];
-        if (c == '\'' && !inDoubleQuote) {
-            inSingleQuote = !inSingleQuote;
-            ++i;
+        if (escape) {
+            if (c == ' ') {
+                result += ' '; 
+            } else {
+                result += '\\';
+                result += c;
+            }
+            escape = false;
             continue;
+        }
+
+        if (c == '\\') {
+            escape = true; 
+        } else if (c == '\'' && !inDoubleQuote) {
+            inSingleQuote = !inSingleQuote;
         } else if (c == '\"' && !inSingleQuote) {
             inDoubleQuote = !inDoubleQuote;
-            ++i;
-            continue;
+        } else {
+            result += c;
         }
+    }
 
-       
-        if (c == '\\') {
-            if (i + 1 < input.length() && input[i + 1] == '\\') {
-               
-                if (i + 2 < input.length() && input[i + 2] == '\\') {
-                    result += "\\\\\\"; 
-                    i += 3;             
-                    continue;
-                } else {
-                    result += "\\\\"; 
-                    i += 2;         
-                    continue;
-                }
-            }
-        }
-        result += c;
-        ++i;
+    if (escape) {
+        result += '\\'; 
     }
 
     return result;
 }
+
 
 
 
