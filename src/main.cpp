@@ -52,13 +52,13 @@ std::string processQuotes(const std::string& input) {
         char c = input[i];
 
         if (escape) {
-            result += c; 
+            result += c;
             escape = false;
             continue;
         }
 
         if (c == '\\') {
-            escape = true; 
+            escape = true;
         } else if (c == '\'' && !inDoubleQuote) {
             inSingleQuote = !inSingleQuote;
         } else if (c == '\"' && !inSingleQuote) {
@@ -68,7 +68,7 @@ std::string processQuotes(const std::string& input) {
                 result += ' ';
             }
         } else {
-            result += c; 
+            result += c;
         }
     }
 
@@ -144,7 +144,7 @@ int main() {
 
             case echo: {
                 std::string result = processQuotes(input);
-                std::cout << result << "\n";
+                std::cout << "\"" << result << "\"\n";
                 break;
             }
 
