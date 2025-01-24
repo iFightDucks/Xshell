@@ -46,17 +46,31 @@ std::string get_path(const std::string& command) {
 std::string processSingleQuotes(const std::string& input) {
     std::string result;
     bool inSingleQuotes = false;
+    std::string temp;
 
     for (size_t i = 0; i < input.size(); ++i) {
         if (input[i] == '\'') {
             inSingleQuotes = !inSingleQuotes;
+            if (!inSingleQuotes) {
+                result += temp;
+                temp.clear();
+            }
+        } else if (inSingleQuotes) {
+            temp += input[i];
         } else {
-            result += input[i];
+            if (input[i] == ' ' && !temp.empty()) {
+                result += temp + " ";
+                temp.clear();
+            } else {
+                result += input[i];
+            }
         }
     }
 
     if (inSingleQuotes) {
         std::cerr << "Error: unmatched single quote\n";
+    } else {
+        result += temp;
     }
 
     return result;
@@ -98,11 +112,7 @@ int main() {
 
         if (input.empty()) continue;
 
-        size_t first_quote = input.find("'"), last_quote = input.rfind("'");
-        if (first_quote != std::string::npos && last_quote != std::string::npos && first_quote != last_quote) {
-            std::string quoted = input.substr(first_quote + 1, last_quote - first_quote - 1);
-            input = input.substr(0, first_quote) + quoted + input.substr(last_quote + 1);
-        }
+        input = processSingleQuotes(input);
 
         size_t space_pos = input.find(' ');
         std::string command = input.substr(0, space_pos);
