@@ -57,7 +57,10 @@ std::string processQuotes(const std::string& input) {
             continue;
         }
 
-        if (c == '\\') {
+        if (c == '\\' && i + 1 < input.length() && input[i + 1] == 'n') {
+            result += "\\n";
+            ++i;  // Skip the next character (n)
+        } else if (c == '\\') {
             escape = true;
         } else if (c == '\'' && !inDoubleQuote) {
             inSingleQuote = !inSingleQuote;
