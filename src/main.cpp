@@ -82,30 +82,51 @@ vector<string> split(string &str, char delimiter) {
 
 void execute_command(const std::string& command, const std::string& args) {
     std::string full_command = command + " " + args;
-    std::string output = "";
-    bool writeToFile = false;
-    bool writeToStdOut = true;
-    std::string fileName;
+    std::string output_file;
+    bool redirect_output = false;
+    bool append_output = false;
 
-    vector<string> tokens = split(full_command, ' ');
-    for (size_t i = 1; i < tokens.size(); ++i) {
-        if (tokens[i] == ">" || tokens[i] == "1>") {
-            fileName = tokens[i + 1];
-            writeToFile = true;
-            writeToStdOut = false;
-            break;
+    size_t redirect_pos = full_command.find('>');
+    if (redirect_pos != std::string::npos) {
+        if (full_command[redirect_pos + 1] == '>') {
+            append_output = true;
+            redirect_pos++;
         }
-        output += tokens[i] + " ";
+        redirect_output = true;
+        output_file = full_command.substr(redirect_pos + 1);
+        full_command = full_command.substr(0, redirect_pos);
+        output_file.erase(0, output_file.find_first_not_of(" \t"));
+        output_file.erase(output_file.find_last_not_of(" \t") + 1);
     }
 
-    if (writeToStdOut) {
-        std::cout << output << std::endl;
+    FILE* fp = popen(full_command.c_str(), "r");
+    if (fp == nullptr) {
+        std::cerr << command << ": command not found\n";
+        return;
     }
-    if (writeToFile) {
-        std::ofstream outputFile(fileName);
-        if (outputFile.is_open()) {
-            outputFile << output << std::endl;
-            outputFile.close();
+
+    std::array<char, 128> buffer;
+    std::string result;
+    bool command_output = false;
+
+    while (fgets(buffer.data(), buffer.size(), fp) != nullptr) {
+        result += buffer.data();
+        command_output = true;
+    }
+
+    int exit_status = pclose(fp);
+    if (exit_status != 0 && !command_output) {
+        std::cerr << command << ": command not found\n";
+    } else {
+        if (redirect_output) {
+            std::ofstream ofs;
+            ofs.open(output_file, append_output ? std::ios::app : std::ios::out);
+            if (ofs.is_open()) {
+                ofs << result;
+                ofs.close();
+            } else {
+                std::cerr << "Error opening file for writing: " << output_file << "\n";
+            }
         }
     }
 }
