@@ -144,6 +144,7 @@ int main() {
 
             case echo: {
                 std::string result = processQuotes(input);
+                result.erase(0, result.find(" ") + 1); 
                 std::cout << result << "\n";
                 break;
             }
