@@ -158,7 +158,7 @@ int main() {
             }
 
             case pwd: {
-                std::cout << std::filesystem::current_path() << "\n";
+                std::cout << std::filesystem::current_path().string() << "\n";
                 break;
             }
 
