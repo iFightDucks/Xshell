@@ -49,11 +49,11 @@ std::string processSingleQuotes(const std::string& input) {
 
     for (size_t i = 0; i < input.size(); ++i) {
         if (input[i] == '\'') {
-            inSingleQuotes = !inSingleQuotes;  
+            inSingleQuotes = !inSingleQuotes;
         } else if (inSingleQuotes || input[i] != ' ') {
-            result += input[i];  
+            result += input[i];
         } else {
-            result += input[i]; 
+            result += input[i];
         }
     }
 
@@ -100,7 +100,6 @@ int main() {
 
         if (input.empty()) continue;
 
-        // Handle single quotes
         input = processSingleQuotes(input);
 
         size_t space_pos = input.find(' ');
@@ -134,9 +133,19 @@ int main() {
                 break;
             }
 
-            case echo:
-                std::cout << args << "\n";
+            case echo: {
+                std::istringstream iss(args);
+                std::string normalized;
+                std::string word;
+                while (iss >> word) {
+                    if (!normalized.empty()) {
+                        normalized += " ";
+                    }
+                    normalized += word;
+                }
+                std::cout << normalized << "\n";
                 break;
+            }
 
             case exit0:
                 exit = true;
