@@ -43,23 +43,32 @@ std::string get_path(const std::string& command) {
     return "";
 }
 
-std::string processSingleQuotes(const std::string& input) {
+std::string processQuotes(const std::string& input) {
     std::string result;
     bool inSingleQuote = false, inDoubleQuote = false;
+    bool escape = false;
 
-    for (size_t i = 5; i < input.length(); ++i) {
+    for (size_t i = 0; i < input.length(); ++i) {
         char c = input[i];
 
-        if (c == '\'') {
+        if (escape) {
+            result += c; 
+            escape = false;
+            continue;
+        }
+
+        if (c == '\\') {
+            escape = true; 
+        } else if (c == '\'' && !inDoubleQuote) {
             inSingleQuote = !inSingleQuote;
-        } else if (c == '\"') {
+        } else if (c == '\"' && !inSingleQuote) {
             inDoubleQuote = !inDoubleQuote;
         } else if (c == ' ' && !inSingleQuote && !inDoubleQuote) {
             if (!result.empty() && result.back() != ' ') {
                 result += ' ';
             }
         } else {
-            result += c;
+            result += c; 
         }
     }
 
@@ -134,7 +143,7 @@ int main() {
             }
 
             case echo: {
-                std::string result = processSingleQuotes(input);
+                std::string result = processQuotes(input);
                 std::cout << result << "\n";
                 break;
             }
