@@ -50,17 +50,19 @@ std::string processSingleQuotes(const std::string& input) {
 
     for (size_t i = 0; i < input.size(); ++i) {
         if (input[i] == '\'') {
-            inSingleQuotes = !inSingleQuotes;
+            inSingleQuotes = !inSingleQuotes;  
             if (!inSingleQuotes) {
+                
                 result += temp;
                 temp.clear();
             }
         } else if (inSingleQuotes) {
+            
             temp += input[i];
         } else {
-            if (input[i] == ' ' && !temp.empty()) {
-                result += temp + " ";
-                temp.clear();
+            
+            if (input[i] == ' ') {
+                result += ' '; 
             } else {
                 result += input[i];
             }
@@ -70,11 +72,12 @@ std::string processSingleQuotes(const std::string& input) {
     if (inSingleQuotes) {
         std::cerr << "Error: unmatched single quote\n";
     } else {
-        result += temp;
+        result += temp; 
     }
 
     return result;
 }
+
 
 void execute_command(const std::string& command, const std::string& args) {
     std::string full_command = command + " " + args + " 2>/dev/null";
