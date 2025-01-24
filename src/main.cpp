@@ -61,6 +61,12 @@ std::string processQuotes(const std::string& input) {
             escape = true;
         } else if (c == '\'' && !inDoubleQuote) {
             inSingleQuote = !inSingleQuote;
+            if (!inSingleQuote) {
+                // End of single quote, add a space if needed
+                if (!result.empty() && result.back() != ' ') {
+                    result += ' ';
+                }
+            }
         } else if (c == '\"' && !inSingleQuote) {
             inDoubleQuote = !inDoubleQuote;
         } else if (c == ' ' && !inSingleQuote && !inDoubleQuote) {
@@ -144,7 +150,7 @@ int main() {
 
             case echo: {
                 std::string result = processQuotes(input);
-                result.erase(0, result.find(" ") + 1); 
+                result.erase(0, result.find(" ") + 1); // Remove the command part
                 std::cout << result << "\n";
                 break;
             }
