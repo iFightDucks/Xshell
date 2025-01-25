@@ -174,48 +174,19 @@ int main() {
             }
 
             case echo: {
-    std::string result = input;
-    result.erase(0, result.find(" ") + 1);
-
-    std::string output_file;
-    bool redirect_output = false;
-    bool append_output = false;
-
-    size_t redirect_pos = result.find('>');
-    if (redirect_pos != std::string::npos) {
-        if (result[redirect_pos + 1] == '>') {
-            append_output = true;
-            redirect_pos++;
-        }
-        redirect_output = true;
-        output_file = result.substr(redirect_pos + 1);
-        result = result.substr(0, redirect_pos);
-        output_file.erase(0, output_file.find_first_not_of(" \t"));
-        output_file.erase(output_file.find_last_not_of(" \t") + 1);
-    }
-
-    vector<string> tokens = split(result, ' ');
-    std::ostringstream oss;
-    for (const auto& token : tokens) {
-        oss << token << " ";
-    }
-    std::string output = oss.str();
-    if (!output.empty() && output.back() == ' ') {
-        output.pop_back();
-    }
-
-    if (redirect_output) {
-        std::ofstream ofs;
-        ofs.open(output_file, append_output ? std::ios::app : std::ios::out);
-        if (ofs.is_open()) {
-            ofs << output << "\n";
-            ofs.close();
-        }
-    } else {
-        std::cout << output << "\n";
-    }
-    break;
-}
+                std::string result = input;
+                size_t redirect_pos = result.find('>');
+                if (redirect_pos != std::string::npos) {
+                    result = result.substr(0, redirect_pos); 
+                }
+                result.erase(0, result.find(" ") + 1);
+                vector<string> tokens = split(result, ' '); 
+                for (const auto& token : tokens) {
+                    std::cout << token << " ";
+                }
+                std::cout << "\n";
+                break;
+            }
 
 
             case exit0:
