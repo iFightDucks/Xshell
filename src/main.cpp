@@ -55,7 +55,6 @@ std::vector<std::string> createInputTokens(std::string& input) {
             }
 
             if (tokensArePaths && (i == 0 || (i != input.size() - 1 && input[i - 1] == '"'))) {
-                // Do not create quotes logic in paths from the wrapping quotes
                 continue;
             }
             inDoubleQuotes = !inDoubleQuotes;
@@ -149,7 +148,7 @@ void handleEcho(const std::vector<std::string> tokens){
     for (size_t i = 1; i < tokens.size(); ++i) {
 
         if (tokens[i] == ">" || tokens[i] == "1>") {
-            fileName = tokens[i + 1]; // boundary?
+            fileName = tokens[i + 1]; 
             writeToFile = true;
             writeToStdOut = false;
             break;
@@ -300,11 +299,11 @@ int main() {
     std::string currentDirectory = std::filesystem::current_path();
 
     while (true) {
-        // Flush after every std::cout / std:cerr
+       
         std::cout << std::unitbuf;
         std::cerr << std::unitbuf;
 
-        // Uncomment this block to pass the first stage
+      
         std::cout << "$ ";
 
         std::string input;
