@@ -55,6 +55,7 @@ std::vector<std::string> createInputTokens(std::string& input) {
             }
 
             if (tokensArePaths && (i == 0 || (i != input.size() - 1 && input[i - 1] == '"'))) {
+                // Do not create quotes logic in paths from the wrapping quotes
                 continue;
             }
             inDoubleQuotes = !inDoubleQuotes;
@@ -66,21 +67,25 @@ std::vector<std::string> createInputTokens(std::string& input) {
             }
             else {
                 if (!token.empty()) {
+
                     if (tokens.empty()) {
                         if (token == "cat") {
                             tokensArePaths = true;
                         }
                     }
                     tokens.push_back(token);
+                    if (tokens.size() > 1) {}
                     token = "";
                 }
             }
         }
         else if (currentChar == '\\'){
+            // Handle non quoted escape character, ignore it
             if (!inDoubleQuotes && !inSingleQuotes){
                 escapeNext = true;
                 continue;
             }
+
 
             if (inDoubleQuotes){
                 if (i < input.size() - 1 && isEscapeableInQuotes(input[i + 1])) {
@@ -144,7 +149,7 @@ void handleEcho(const std::vector<std::string> tokens){
     for (size_t i = 1; i < tokens.size(); ++i) {
 
         if (tokens[i] == ">" || tokens[i] == "1>") {
-            fileName = tokens[i + 1];
+            fileName = tokens[i + 1]; // boundary?
             writeToFile = true;
             writeToStdOut = false;
             break;
@@ -152,12 +157,14 @@ void handleEcho(const std::vector<std::string> tokens){
         output += tokens[i] + " ";
     }
 
+
     if (writeToStdOut) {
         std::cout << output << std::endl;
     }
 
     if (writeToFile) {
         std::ofstream outputFile(fileName);
+
         if (outputFile.is_open()) {
             outputFile << output << std::endl;
             outputFile.close();
@@ -235,6 +242,7 @@ bool handleExecutable(std::vector<std::string> tokens)
             std::string command = "";
             for(size_t i = 1; i < tokens.size(); ++i)
             {
+
                 if (tokens[i] == ">" || tokens[i] == "1>") {
                     command += tokens[i] + " ";
                 }
@@ -244,6 +252,7 @@ bool handleExecutable(std::vector<std::string> tokens)
                 else {
                     command += '\'' + tokens[i] + "' ";
                 }
+
             }
 
             if (tokens[0] == "cat") {
@@ -287,12 +296,15 @@ std::string goUpNDirectories(std::string currentDirectory, size_t count) {
 }
 
 int main() {
+
     std::string currentDirectory = std::filesystem::current_path();
 
     while (true) {
+        // Flush after every std::cout / std:cerr
         std::cout << std::unitbuf;
         std::cerr << std::unitbuf;
 
+        // Uncomment this block to pass the first stage
         std::cout << "$ ";
 
         std::string input;
@@ -376,6 +388,7 @@ int main() {
 
         }
         else {
+
             bool wasExecutable = handleExecutable(tokens);
 
             if (!wasExecutable)
