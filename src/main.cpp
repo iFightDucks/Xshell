@@ -59,7 +59,7 @@ vector<string> split(string &str, char delimiter) {
             escaped = false;
         } else if (ch == '\\') {
             escaped = true;
-            if(singlequoteopen) token+=ch;
+            if (singlequoteopen) token += ch;
         } else if (ch == '\'') {
             if (!doublequoteopen) singlequoteopen = !singlequoteopen;
             else token += ch;
@@ -131,7 +131,6 @@ void execute_command(const std::string& command, const std::string& args) {
     }
 }
 
-
 int main() {
     bool exit = false;
 
@@ -176,18 +175,45 @@ int main() {
             case echo: {
                 std::string result = input;
                 size_t redirect_pos = result.find('>');
+                std::string output_file;
+                bool append_output = false;
+
                 if (redirect_pos != std::string::npos) {
-                    result = result.substr(0, redirect_pos); 
+                    if (result[redirect_pos + 1] == '>') {
+                        append_output = true;
+                        redirect_pos++;
+                    }
+                    output_file = result.substr(redirect_pos + 1);
+                    result = result.substr(0, redirect_pos);
+                    output_file.erase(0, output_file.find_first_not_of(" \t"));
+                    output_file.erase(output_file.find_last_not_of(" \t") + 1);
                 }
+
                 result.erase(0, result.find(" ") + 1);
-                vector<string> tokens = split(result, ' '); 
+                vector<string> tokens = split(result, ' ');
+                std::ostringstream oss;
                 for (const auto& token : tokens) {
-                    std::cout << token << " ";
+                    oss << token << " ";
                 }
-                std::cout << "\n";
+                std::string output = oss.str();
+                if (!output.empty() && output.back() == ' ') {
+                    output.pop_back();
+                }
+
+                if (!output_file.empty()) {
+                    std::ofstream ofs;
+                    ofs.open(output_file, append_output ? std::ios::app : std::ios::out);
+                    if (ofs.is_open()) {
+                        ofs << output << "\n";
+                        ofs.close();
+                    } else {
+                        std::cerr << "Error: Cannot open file for writing: " << output_file << "\n";
+                    }
+                } else {
+                    std::cout << output << "\n";
+                }
                 break;
             }
-
 
             case exit0:
                 exit = true;
