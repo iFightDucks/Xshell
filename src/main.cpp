@@ -2,346 +2,229 @@
 #include <fstream>
 #include <vector>
 #include <filesystem>
+#include <unordered_map>
+#include <algorithm>
 
-std::vector<std::string> split(std::string& input, const std::string& delimiter) {
-    std::vector<std::string> tokens;
-    size_t pos = 0;
-    std::string token;
-    while((pos = input.find(delimiter)) != std::string::npos)
-    {
-        token = input.substr(0, pos);
-        tokens.push_back(token);
-        input.erase(0, pos + delimiter.length());
+enum class CommandType {
+    EXIT,
+    ECHO,
+    TYPE,
+    PWD,
+    CD,
+    EXECUTABLE,
+    UNKNOWN
+};
+
+class ShellParser {
+private:
+    std::string currentDirectory;
+
+    std::vector<std::string> split(std::string& input, const std::string& delimiter) {
+        std::vector<std::string> tokens;
+        size_t pos = 0;
+        std::string token;
+        while((pos = input.find(delimiter)) != std::string::npos) {
+            token = input.substr(0, pos);
+            tokens.push_back(token);
+            input.erase(0, pos + delimiter.length());
+        }
+        tokens.push_back(input);
+        return tokens;
     }
-    token = input.substr(0, input.size());
-    tokens.push_back(token);
-    return tokens;
-}
 
-bool isEscapeableInQuotes(char inputChar) {
-    return (inputChar == '\\' || inputChar == '$' || inputChar == '"' || inputChar == '\n');
-}
+    CommandType identifyCommand(const std::string& command) {
+        static const std::unordered_map<std::string, CommandType> commandMap = {
+            {"exit", CommandType::EXIT},
+            {"echo", CommandType::ECHO},
+            {"type", CommandType::TYPE},
+            {"pwd", CommandType::PWD},
+            {"cd", CommandType::CD}
+        };
 
-std::vector<std::string> createInputTokens(std::string& input) {
-    std::vector<std::string> tokens;
-    std::string token;
-    bool inSingleQuotes = false;
-    bool inDoubleQuotes = false;
-    bool escapeNext = false;
-    bool tokensArePaths = false;
-    for (size_t i = 0; i < input.size(); i++) {
-        char currentChar = input[i];
-        if (escapeNext){
-            token.push_back(currentChar);
-            escapeNext = false;
-            continue;
-        }
-        if (currentChar == '\'') {
-            if (inDoubleQuotes) {
-                token.push_back(currentChar);
-            }
-            else {
-                inSingleQuotes = !inSingleQuotes;
-            }
-        }
-        else if (currentChar == '\"') {
-            if (inSingleQuotes) {
-                token.push_back(currentChar);
-            }
-            if (tokensArePaths && (i == 0 || (i != input.size() - 1 && input[i - 1] == '"'))) {
-                continue;
-            }
-            inDoubleQuotes = !inDoubleQuotes;
-        }
-        else if (currentChar == ' ') {
-            if (inSingleQuotes || inDoubleQuotes) {
-                token.push_back(currentChar);
-            }
-            else {
-                if (!token.empty()) {
-                    if (tokens.empty()) {
-                        if (token == "cat") {
-                            tokensArePaths = true;
-                        }
-                    }
-                    tokens.push_back(token);
-                    if (tokens.size() > 1) {}
-                    token = "";
-                }
-            }
-        }
-        else if (currentChar == '\\'){
-            if (!inDoubleQuotes && !inSingleQuotes){
-                escapeNext = true;
-                continue;
-            }
-            if (inDoubleQuotes){
-                if (i < input.size() - 1 && isEscapeableInQuotes(input[i + 1])) {
-                    escapeNext = true;
-                    continue;
-                }
-                else if (!tokensArePaths) {
-                    token.push_back(currentChar);
-                    token.push_back(currentChar);
-                }
-                else if (tokensArePaths) {
-                    token.push_back(currentChar);
-                }
-            }
-            else if (inSingleQuotes){
-                token.push_back(currentChar);
-                escapeNext = true;
-                continue;
-            }
-        }
-        else {
-            token.push_back(currentChar);
-        }
-        escapeNext = false;
+        auto it = commandMap.find(command);
+        return it != commandMap.end() ? it->second : CommandType::EXECUTABLE;
     }
-    tokens.push_back(token);
-    return tokens;
-}
 
-bool isExecutable(const std::filesystem::path& path)
-{
-    if (std::filesystem::is_regular_file(path)) {
-        auto permissions = std::filesystem::status(path).permissions();
-        return (permissions & std::filesystem::perms::owner_exec) != std::filesystem::perms::none ||
-            (permissions & std::filesystem::perms::group_exec) != std::filesystem::perms::none ||
-            (permissions & std::filesystem::perms::others_exec) != std::filesystem::perms::none;
-    }
-    return false;
-}
-
-bool isCustomExecutable(const std::filesystem::path& path)
-{
-    auto permissions = std::filesystem::status(path).permissions();
-    return (permissions & std::filesystem::perms::owner_exec) != std::filesystem::perms::none ||
-        (permissions & std::filesystem::perms::group_exec) != std::filesystem::perms::none ||
-        (permissions & std::filesystem::perms::others_exec) != std::filesystem::perms::none;
-}
-
-void handleEcho(const std::vector<std::string> tokens){
-    std::string output = "";
-    bool writeToFile = false;
-    bool writeToStdOut = true;
-    std::string fileName;
-    for (size_t i = 1; i < tokens.size(); ++i) {
-        if (tokens[i] == ">" || tokens[i] == "1>") {
-            fileName = tokens[i + 1];
-            writeToFile = true;
-            writeToStdOut = false;
-            break;
+    std::vector<std::string> getAllPathsFromEnvironment() {
+        char const* path = std::getenv("PATH");
+        if (path != NULL) {
+            std::string pathAsString = path;
+            return split(pathAsString, ":");
         }
-        output += tokens[i] + " ";
+        return {};
     }
-    if (writeToStdOut) {
-        std::cout << output << std::endl;
-    }
-    if (writeToFile) {
-        std::ofstream outputFile(fileName);
-        if (outputFile.is_open()) {
-            outputFile << output << std::endl;
-            outputFile.close();
-        }
-    }
-}
 
-std::vector<std::string> getAllPathsFromEnvironment(){
-    char const* path = std::getenv("PATH");
-    if (path != NULL){
-        std::string pathAsString = path;
-        return split(pathAsString, ":");
+    std::string extractExecutableName(const std::string& fullPath) {
+        size_t lastSlash = fullPath.find_last_of('/');
+        return (lastSlash != std::string::npos) ? fullPath.substr(lastSlash + 1) : fullPath;
     }
-    std::vector<std::string> empty;
-    return empty;
-}
 
-std::string extractExecutableName(const std::string& fullPath) {
-    size_t lastSlash = fullPath.find_last_of('/');
-    return (lastSlash != std::string::npos) ? fullPath.substr(lastSlash + 1) : fullPath;
-}
+    void handleEcho(const std::vector<std::string>& tokens) {
+        std::string output;
+        bool writeToFile = false;
+        bool writeToStdOut = true;
+        std::string fileName;
 
-void handleType(const std::vector<std::string> tokens){
-    if (tokens[1] == "echo" ||
-        tokens[1] == "type" ||
-        tokens[1] == "pwd" ||
-        tokens[1] == "exit")
-    {
-        std::cout << tokens[1] << " is a shell builtin" << std::endl;
-    }
-    else {
-        std::vector<std::string> allPathsFromEnvironment =
-                getAllPathsFromEnvironment();
-        if (allPathsFromEnvironment.empty()){
-            std::cout << tokens[1] << ": not found" << std::endl;
-        }
-        bool found = false;
-        for(auto path : allPathsFromEnvironment){
-            std::string fullPath = path + "/" + tokens[1];
-            if (std::filesystem::exists(fullPath)){
-                found = true;
-                std::cout << tokens[1] << " is " << fullPath << std::endl;
+        for (size_t i = 1; i < tokens.size(); ++i) {
+            if (tokens[i] == ">" || tokens[i] == "1>") {
+                fileName = tokens[i + 1];
+                writeToFile = true;
+                writeToStdOut = false;
                 break;
             }
+            output += tokens[i] + " ";
         }
-        if (!found){
+
+        if (writeToStdOut) {
+            std::cout << output << std::endl;
+        }
+
+        if (writeToFile) {
+            std::ofstream outputFile(fileName);
+            if (outputFile.is_open()) {
+                outputFile << output << std::endl;
+            }
+        }
+    }
+
+    void handleType(const std::vector<std::string>& tokens) {
+        std::vector<std::string> builtinCommands = {"echo", "type", "pwd", "exit"};
+        
+        if (std::find(builtinCommands.begin(), builtinCommands.end(), tokens[1]) != builtinCommands.end()) {
+            std::cout << tokens[1] << " is a shell builtin" << std::endl;
+        } else {
+            std::vector<std::string> paths = getAllPathsFromEnvironment();
+            for (const auto& path : paths) {
+                std::string fullPath = path + "/" + tokens[1];
+                if (std::filesystem::exists(fullPath)) {
+                    std::cout << tokens[1] << " is " << fullPath << std::endl;
+                    return;
+                }
+            }
             std::cout << tokens[1] << ": not found" << std::endl;
         }
     }
-}
 
-bool handleExecutable(std::vector<std::string> tokens)
-{
-    std::vector<std::string> allPathsFromEnvironment =
-                getAllPathsFromEnvironment();
-    bool isCustomExecutable = false;
-    std::string firstToken = tokens[0];
-    if (tokens[0].find('\'') != std::string::npos) {
-        firstToken = '\"' + tokens[0] + "\" ";
-        isCustomExecutable = true;
+    bool isExecutable(const std::filesystem::path& path) {
+        if (std::filesystem::is_regular_file(path)) {
+            auto permissions = std::filesystem::status(path).permissions();
+            return (permissions & std::filesystem::perms::owner_exec) != std::filesystem::perms::none ||
+                   (permissions & std::filesystem::perms::group_exec) != std::filesystem::perms::none ||
+                   (permissions & std::filesystem::perms::others_exec) != std::filesystem::perms::none;
+        }
+        return false;
     }
-    else if (tokens[0].find(' ') != std::string::npos){
-        firstToken = '\'' + tokens[0] + "' ";
-        isCustomExecutable = true;
-    }
-    for(auto path : allPathsFromEnvironment){
-        std::string fullPath = path + "/" + firstToken;
-        if (isExecutable(fullPath) || isCustomExecutable){
-            std::string command = "";
-            for(size_t i = 1; i < tokens.size(); ++i)
-            {
-                if (tokens[i] == ">" || tokens[i] == "1>") {
-                    command += tokens[i] + " ";
-                }
-                else if (tokens[i].find('\'') != std::string::npos) {
-                    command += '\"' + tokens[i] + "\" ";
-                }
-                else {
+
+    bool handleExecutable(const std::vector<std::string>& tokens) {
+        std::vector<std::string> paths = getAllPathsFromEnvironment();
+        std::string firstToken = extractExecutableName(tokens[0]);
+
+        for (const auto& path : paths) {
+            std::string fullPath = path + "/" + firstToken;
+            if (isExecutable(fullPath)) {
+                std::string command;
+                for (size_t i = 1; i < tokens.size(); ++i) {
                     command += '\'' + tokens[i] + "' ";
                 }
+                std::string fullCommandStr = fullPath + " " + command;
+                system(fullCommandStr.c_str());
+                return true;
             }
-            if (tokens[0] == "cat") {
-                fullPath = "cat";
+        }
+        return false;
+    }
+
+    std::string goUpNDirectories(const std::string& currentDirectory, size_t count) {
+        std::vector<std::string> pathSegments = split(const_cast<std::string&>(currentDirectory), "/");
+        std::string newDirectory;
+        for (size_t i = 1; i < pathSegments.size() - count; i++) {
+            newDirectory += "/" + pathSegments[i];
+        }
+        return newDirectory;
+    }
+
+    void handleCd(const std::vector<std::string>& tokens) {
+        if (tokens.size() < 2) {
+            std::cout << "cd: missing argument" << std::endl;
+            return;
+        }
+
+        std::string newPath = tokens[1];
+        std::string resolvedPath;
+
+        if (newPath[0] == '/') {
+            resolvedPath = newPath;
+        } else if (newPath[0] == '~') {
+            char const* home = std::getenv("HOME");
+            resolvedPath = (home ? std::string(home) : "") + newPath.substr(1);
+        } else if (newPath.substr(0, 2) == "./") {
+            resolvedPath = currentDirectory + newPath.substr(1);
+        } else if (newPath.substr(0, 3) == "../") {
+            size_t count = std::count(newPath.begin(), newPath.end(), '.');
+            resolvedPath = goUpNDirectories(currentDirectory, count / 2);
+            if (newPath.length() > count) {
+                resolvedPath += "/" + newPath.substr(count);
             }
-            std::string fullCommandStr = fullPath + " " + command;
-            const char* fullCommand = fullCommandStr.c_str();
-            system(fullCommand);
-            return true;
+        } else {
+            resolvedPath = currentDirectory + "/" + newPath;
+        }
+
+        if (std::filesystem::is_directory(resolvedPath)) {
+            currentDirectory = resolvedPath;
+        } else {
+            std::cout << "cd: " << newPath << ": No such file or directory" << std::endl;
         }
     }
-    return false;
-}
 
-bool isAbsolutePath(std::string token) {
-    return token.length() > 1 && token[0] == '/';
-}
+public:
+    ShellParser() : currentDirectory(std::filesystem::current_path()) {}
 
-bool isRelativePathChild(std::string token) {
-    return token.length() > 2 && token[0] == '.' && token[1] == '/';
-}
+    void processCommand(const std::string& input) {
+        std::vector<std::string> tokens = split(const_cast<std::string&>(input), " ");
+        
+        if (tokens.empty()) return;
 
-bool isRelativePathParent(std::string token) {
-    return token.length() > 2 && token[0] == '.' && token[1] == '.' && token[2] == '/';
-}
+        CommandType cmdType = identifyCommand(tokens[0]);
 
-bool isHomeDirectory(std::string token) {
-    return token.length() > 0 && token[0] == '~';
-}
-
-std::string goUpNDirectories(std::string currentDirectory, size_t count) {
-    std::vector<std::string> allPathSegmentsFromCurrentDirectory = split(currentDirectory, "/");
-    std::string newDirectory;
-    for(size_t i = 1; i < allPathSegmentsFromCurrentDirectory.size() - count; i++) {
-        newDirectory += "/" + allPathSegmentsFromCurrentDirectory[i];
+        switch (cmdType) {
+            case CommandType::EXIT:
+                exit(0);
+                break;
+            case CommandType::ECHO:
+                handleEcho(tokens);
+                break;
+            case CommandType::TYPE:
+                handleType(tokens);
+                break;
+            case CommandType::PWD:
+                std::cout << currentDirectory << std::endl;
+                break;
+            case CommandType::CD:
+                handleCd(tokens);
+                break;
+            case CommandType::EXECUTABLE:
+                if (!handleExecutable(tokens)) {
+                    std::cout << input << ": command not found" << std::endl;
+                }
+                break;
+            default:
+                std::cout << input << ": command not found" << std::endl;
+                break;
+        }
     }
-    return newDirectory;
-}
+
+    void run() {
+        while (true) {
+            std::cout << "$ ";
+            std::string input;
+            std::getline(std::cin, input);
+            processCommand(input);
+        }
+    }
+};
 
 int main() {
-    std::string currentDirectory = std::filesystem::current_path();
-    while (true) {
-        std::cout << std::unitbuf;
-        std::cerr << std::unitbuf;
-        std::cout << "$ ";
-        std::string input;
-        std::getline(std::cin, input);
-        std::vector<std::string> tokens = createInputTokens(input);
-        if (tokens.empty()){
-            continue;
-        }
-        if (tokens[0] == "exit"){
-            break;
-        }
-        if (tokens[0] == "echo"){
-            handleEcho(tokens);
-        }
-        else if (tokens[0] == "type"){
-            handleType(tokens);
-        }
-        else if (tokens[0] == "pwd")
-        {
-            std::cout << currentDirectory << std::endl;
-        }
-        else if (tokens[0] == "cd")
-        {
-            if (isAbsolutePath(tokens[1])) {
-                if (std::filesystem::is_directory(tokens[1]))
-                {
-                    currentDirectory = tokens[1];
-                }
-                else
-                {
-                    std::cout << "cd: " << tokens[1] << ": No such file or directory" << std::endl;
-                }
-            }
-            else if (isRelativePathChild(tokens[1])) {
-                std::string directoryToAppend = tokens[1].substr(1, tokens[1].length() - 1);
-                std::string testDirectory = currentDirectory + directoryToAppend;
-                if (std::filesystem::is_directory(testDirectory))
-                {
-                    currentDirectory = testDirectory;
-                }
-                else
-                {
-                    std::cout << "cd: " << testDirectory << ": No such file or directory" << std::endl;
-                }
-            }
-            else if (isRelativePathParent(tokens[1])) {
-                size_t count = 0;
-                std::string currentInputDirectory = tokens[1];
-                do {
-                    count++;
-                    currentInputDirectory = currentInputDirectory.substr(3, tokens[1].length() - 3);
-                } while (isRelativePathParent(currentInputDirectory));
-                currentDirectory = goUpNDirectories(currentDirectory, count);
-                if (currentInputDirectory.length() > 1) {
-                    currentDirectory += "/" + currentInputDirectory;
-                }
-            }
-            else if (isHomeDirectory(tokens[1])) {
-                char const* homeDirectory = std::getenv("HOME");
-                if (tokens[1].length() > 1) {
-                    std::string directoryToAppend = tokens[1].substr(1, tokens[1].length() - 1);
-                    currentDirectory = homeDirectory + directoryToAppend;
-                }
-                else {
-                    currentDirectory = homeDirectory;
-                }
-            }
-            else
-            {
-                std::cout << "cd: " << tokens[1] << ": No such file or directory" << std::endl;
-            }
-        }
-        else {
-            bool wasExecutable = handleExecutable(tokens);
-            if (!wasExecutable)
-            {
-                std::cout << input << ": command not found" << std::endl;
-            }
-        }
-    }
+    ShellParser shell;
+    shell.run();
     return 0;
 }
