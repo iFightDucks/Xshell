@@ -34,7 +34,6 @@ std::string get_path(const std::string& command) {
     std::string path_env = std::getenv("PATH");
     std::stringstream ss(path_env);
     std::string path;
-
     while (!ss.eof()) {
         getline(ss, path, ':');
         std::string abs_path = path + '/' + command;
@@ -59,7 +58,7 @@ vector<string> split(string &str, char delimiter) {
             escaped = false;
         } else if (ch == '\\') {
             escaped = true;
-            if (singlequoteopen) token += ch;
+            if(singlequoteopen) token+=ch;
         } else if (ch == '\'') {
             if (!doublequoteopen) singlequoteopen = !singlequoteopen;
             else token += ch;
@@ -192,14 +191,15 @@ int main() {
                 result.erase(0, result.find(" ") + 1);
                 vector<string> tokens = split(result, ' ');
                 std::ostringstream oss;
-                for (const auto& token : tokens) {
-                    oss << token << " ";
-                }
-                std::string output = oss.str();
-                if (!output.empty() && output.back() == ' ') {
-                    output.pop_back();
+                for (size_t i = 0; i < tokens.size(); ++i) {
+                    if (tokens[i].front() == '"' && tokens[i].back() == '"') {
+                        tokens[i] = tokens[i].substr(1, tokens[i].size() - 2);
+                    }
+                    oss << tokens[i];
+                    if (i < tokens.size() - 1) oss << " ";
                 }
 
+                std::string output = oss.str();
                 if (!output_file.empty()) {
                     std::ofstream ofs;
                     ofs.open(output_file, append_output ? std::ios::app : std::ios::out);
