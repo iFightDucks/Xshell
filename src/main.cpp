@@ -87,162 +87,104 @@ void execute_command(const std::string& command, const std::string& args) {
 
     size_t redirect_pos = full_command.find('>');
     if (redirect_pos != std::string::npos) {
-        if (full_command[redirect_pos + 1] == '>') {
-            append_output = true;
-            redirect_pos++;
-        }
-        redirect_output = true;
         output_file = full_command.substr(redirect_pos + 1);
         full_command = full_command.substr(0, redirect_pos);
-        output_file.erase(0, output_file.find_first_not_of(" \t"));
-        output_file.erase(output_file.find_last_not_of(" \t") + 1);
+        redirect_output = true;
     }
 
-    FILE* fp = popen(full_command.c_str(), "r");
-    if (fp == nullptr) {
-        std::cerr << command << ": command not found\n";
+    // Execute command
+    const char* command_cstr = full_command.c_str();
+    if (redirect_output) {
+        std::ofstream out(output_file);
+        out << system(command_cstr);
+        out.close();
+    } else {
+        system(command_cstr);
+    }
+}
+
+void handle_echo(const std::vector<std::string>& tokens) {
+    std::string output = "";
+    bool redirect = false;
+    std::string file_name;
+    for (size_t i = 1; i < tokens.size(); ++i) {
+        if (tokens[i] == ">" || tokens[i] == "1>") {
+            file_name = tokens[i + 1];
+            redirect = true;
+            break;
+        }
+        output += tokens[i] + " ";
+    }
+    if (redirect) {
+        std::ofstream outfile(file_name);
+        outfile << output;
+        outfile.close();
+    } else {
+        std::cout << output << std::endl;
+    }
+}
+
+void handle_cd(const std::vector<std::string>& tokens) {
+    if (tokens.size() < 2) {
+        std::cerr << "cd: missing argument" << std::endl;
         return;
     }
-
-    std::array<char, 128> buffer;
-    std::string result;
-
-    while (fgets(buffer.data(), buffer.size(), fp) != nullptr) {
-        result += buffer.data();
-    }
-
-    int exit_status = pclose(fp);
-    if (exit_status != 0) {
-        std::cerr << command << ": command not found or failed\n";
-    }
-
-    if (redirect_output) {
-        std::ofstream ofs;
-        ofs.open(output_file, append_output ? std::ios::app : std::ios::out);
-        if (ofs.is_open()) {
-            ofs << result;
-            ofs.close();
-        } else {
-            std::cerr << "Error opening file for writing: " << output_file << "\n";
-        }
+    std::string dir = tokens[1];
+    if (std::filesystem::exists(dir) && std::filesystem::is_directory(dir)) {
+        std::filesystem::current_path(dir);
     } else {
-        std::cout << result;
+        std::cerr << "cd: " << dir << ": No such file or directory" << std::endl;
+    }
+}
+
+void handle_pwd() {
+    std::cout << std::filesystem::current_path() << std::endl;
+}
+
+void handle_type(const std::vector<std::string>& tokens) {
+    if (tokens.size() < 2) {
+        std::cerr << "type: missing argument" << std::endl;
+        return;
+    }
+    std::string command = tokens[1];
+    std::string path = get_path(command);
+    if (!path.empty()) {
+        std::cout << command << " is " << path << std::endl;
+    } else {
+        std::cerr << command << ": command not found" << std::endl;
     }
 }
 
 int main() {
-    bool exit = false;
-
-    while (!exit) {
+    string input;
+    while (true) {
         std::cout << "$ ";
-        std::string input;
         std::getline(std::cin, input);
 
-        if (input.empty()) continue;
+        vector<string> tokens = split(input, ' ');
+        if (tokens.empty()) continue;
 
-        size_t space_pos = input.find(' ');
-        std::string command = input.substr(0, space_pos);
-        std::string args = (space_pos == std::string::npos) ? "" : input.substr(space_pos + 1);
+        validCommands cmd = isValid(tokens[0]);
 
-        switch (isValid(command)) {
-            case cd: {
-                try {
-                    if (args.empty() || args == "~") {
-                        const char* home = std::getenv("HOME");
-                        if (home) {
-                            std::filesystem::current_path(home);
-                        } else {
-                            std::cerr << "cd: HOME not set\n";
-                        }
-                    } else if (args[0] == '~') {
-                        const char* home = std::getenv("HOME");
-                        if (home) {
-                            std::string newPath = std::string(home) + args.substr(1);
-                            std::filesystem::current_path(newPath);
-                        } else {
-                            std::cerr << "cd: HOME not set\n";
-                        }
-                    } else {
-                        std::filesystem::current_path(args);
-                    }
-                } catch (const std::filesystem::filesystem_error& e) {
-                    std::cerr << "cd: " << args << ": No such file or directory\n";
-                }
+        switch (cmd) {
+            case echo:
+                handle_echo(tokens);
                 break;
-            }
-
-            case echo: {
-                std::string result = input;
-                size_t redirect_pos = result.find('>');
-                std::string output_file;
-                bool append_output = false;
-
-                if (redirect_pos != std::string::npos) {
-                    if (result[redirect_pos + 1] == '>') {
-                        append_output = true;
-                        redirect_pos++;
-                    }
-                    output_file = result.substr(redirect_pos + 1);
-                    result = result.substr(0, redirect_pos);
-                    output_file.erase(0, output_file.find_first_not_of(" \t"));
-                    output_file.erase(output_file.find_last_not_of(" \t") + 1);
-                }
-
-                result.erase(0, result.find(" ") + 1);
-                vector<string> tokens = split(result, ' ');
-                std::ostringstream oss;
-                for (size_t i = 0; i < tokens.size(); ++i) {
-                    if (tokens[i].front() == '"' && tokens[i].back() == '"') {
-                        tokens[i] = tokens[i].substr(1, tokens[i].size() - 2);
-                    }
-                    oss << tokens[i];
-                    if (i < tokens.size() - 1) oss << " ";
-                }
-
-                std::string output = oss.str();
-                if (!output_file.empty()) {
-                    std::ofstream ofs;
-                    ofs.open(output_file, append_output ? std::ios::app : std::ios::out);
-                    if (ofs.is_open()) {
-                        ofs << output << "\n";
-                        ofs.close();
-                    } else {
-                        std::cerr << "Error: Cannot open file for writing: " << output_file << "\n";
-                    }
-                } else {
-                    std::cout << output << "\n";
-                }
+            case cd:
+                handle_cd(tokens);
                 break;
-            }
-
             case exit0:
-                exit = true;
+                return 0;
+            case type:
+                handle_type(tokens);
                 break;
-
-            case type: {
-                if (isValid(args) != invalid) {
-                    std::cout << args << " is a shell builtin\n";
-                } else {
-                    std::string path = get_path(args);
-                    if (path.empty()) {
-                        std::cout << args << ": not found\n";
-                    } else {
-                        std::cout << args << " is " << path << "\n";
-                    }
-                }
+            case pwd:
+                handle_pwd();
                 break;
-            }
-
-            case pwd: {
-                std::cout << std::filesystem::current_path().string() << "\n";
-                break;
-            }
-
+            case invalid:
             default:
-                execute_command(command, args);
-                break;
+                std::cerr << "Invalid command" << std::endl;
         }
     }
-
     return 0;
 }
