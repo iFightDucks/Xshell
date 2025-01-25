@@ -18,6 +18,7 @@ enum validCommands {
     pwd
 };
 
+// Function to validate commands
 validCommands isValid(const std::string& command) {
     std::string cmd = command.substr(0, command.find(" "));
     if (cmd.empty()) return invalid;
@@ -29,21 +30,7 @@ validCommands isValid(const std::string& command) {
     return invalid;
 }
 
-std::string get_path(const std::string& command) {
-    if (command.empty()) return "";
-    std::string path_env = std::getenv("PATH");
-    std::stringstream ss(path_env);
-    std::string path;
-    while (!ss.eof()) {
-        getline(ss, path, ':');
-        std::string abs_path = path + '/' + command;
-        if (filesystem::exists(abs_path)) {
-            return abs_path;
-        }
-    }
-    return "";
-}
-
+// Function to split strings by delimiter
 vector<string> split(string &str, char delimiter) {
     vector<string> tokens;
     string token = "";
@@ -51,14 +38,10 @@ vector<string> split(string &str, char delimiter) {
     for (int i = 0; i < str.size(); i++) {
         char ch = str[i];
         if (escaped) {
-            if (doublequoteopen && ch != '"' && ch != '\\') {
-                token += '\\';
-            }
             token += ch;
             escaped = false;
         } else if (ch == '\\') {
             escaped = true;
-            if(singlequoteopen) token+=ch;
         } else if (ch == '\'') {
             if (!doublequoteopen) singlequoteopen = !singlequoteopen;
             else token += ch;
@@ -79,6 +62,7 @@ vector<string> split(string &str, char delimiter) {
     return tokens;
 }
 
+// Function to execute commands
 void execute_command(const std::string& command, const std::string& args) {
     std::string full_command = command + " " + args;
     std::string output_file;
@@ -87,81 +71,119 @@ void execute_command(const std::string& command, const std::string& args) {
 
     size_t redirect_pos = full_command.find('>');
     if (redirect_pos != std::string::npos) {
-        output_file = full_command.substr(redirect_pos + 1);
+        size_t append_pos = full_command.find(">>", redirect_pos);
+        if (append_pos != std::string::npos) {
+            append_output = true;
+            full_command = full_command.substr(0, append_pos) + full_command.substr(append_pos + 2);
+        }
+        size_t file_pos = full_command.find_first_not_of(' ', redirect_pos + 1);
+        output_file = full_command.substr(file_pos);
         full_command = full_command.substr(0, redirect_pos);
         redirect_output = true;
     }
 
-    // Execute command
-    const char* command_cstr = full_command.c_str();
     if (redirect_output) {
-        std::ofstream out(output_file);
-        out << system(command_cstr);
-        out.close();
+        std::ofstream out(output_file, append_output ? std::ios_base::app : std::ios_base::trunc);
+        std::streambuf* orig = std::cout.rdbuf();
+        std::cout.rdbuf(out.rdbuf());
+        system(full_command.c_str());
+        std::cout.rdbuf(orig);
     } else {
-        system(command_cstr);
+        system(full_command.c_str());
     }
 }
 
-void handle_echo(const std::vector<std::string>& tokens) {
+// Function to check if the command exists in PATH
+std::string get_path(const std::string& command) {
+    if (command.empty()) return "";
+    std::string path_env = std::getenv("PATH");
+    std::stringstream ss(path_env);
+    std::string path;
+    while (!ss.eof()) {
+        getline(ss, path, ':');
+        std::string abs_path = path + '/' + command;
+        if (filesystem::exists(abs_path)) {
+            return abs_path;
+        }
+    }
+    return "";
+}
+
+// Function to handle echo command
+void handle_echo(const vector<string>& tokens) {
     std::string output = "";
-    bool redirect = false;
+    bool redirect_output = false;
     std::string file_name;
+
     for (size_t i = 1; i < tokens.size(); ++i) {
         if (tokens[i] == ">" || tokens[i] == "1>") {
             file_name = tokens[i + 1];
-            redirect = true;
+            redirect_output = true;
             break;
         }
         output += tokens[i] + " ";
     }
-    if (redirect) {
+
+    if (redirect_output) {
         std::ofstream outfile(file_name);
-        outfile << output;
-        outfile.close();
+        if (outfile.is_open()) {
+            outfile << output;
+            outfile.close();
+        }
     } else {
         std::cout << output << std::endl;
     }
 }
 
-void handle_cd(const std::vector<std::string>& tokens) {
+// Function to handle cd command
+void handle_cd(const vector<string>& tokens, std::string& current_directory) {
     if (tokens.size() < 2) {
-        std::cerr << "cd: missing argument" << std::endl;
+        std::cout << "cd: missing operand" << std::endl;
         return;
     }
-    std::string dir = tokens[1];
-    if (std::filesystem::exists(dir) && std::filesystem::is_directory(dir)) {
-        std::filesystem::current_path(dir);
+
+    std::string new_directory = tokens[1];
+
+    if (new_directory == "~") {
+        const char* home_dir = std::getenv("HOME");
+        new_directory = home_dir ? home_dir : "/";
+    } else if (new_directory == "..") {
+        current_directory = current_directory.substr(0, current_directory.find_last_of('/'));
     } else {
-        std::cerr << "cd: " << dir << ": No such file or directory" << std::endl;
+        current_directory = new_directory;
+    }
+
+    if (!std::filesystem::exists(current_directory)) {
+        std::cout << "cd: no such file or directory: " << new_directory << std::endl;
     }
 }
 
-void handle_pwd() {
-    std::cout << std::filesystem::current_path() << std::endl;
-}
-
-void handle_type(const std::vector<std::string>& tokens) {
+// Function to handle type command
+void handle_type(const vector<string>& tokens) {
     if (tokens.size() < 2) {
-        std::cerr << "type: missing argument" << std::endl;
+        std::cout << "type: missing operand" << std::endl;
         return;
     }
+
     std::string command = tokens[1];
     std::string path = get_path(command);
-    if (!path.empty()) {
-        std::cout << command << " is " << path << std::endl;
+    if (path.empty()) {
+        std::cout << command << ": not found" << std::endl;
     } else {
-        std::cerr << command << ": command not found" << std::endl;
+        std::cout << command << " is " << path << std::endl;
     }
 }
 
 int main() {
-    string input;
+    std::string current_directory = std::filesystem::current_path();
+
     while (true) {
         std::cout << "$ ";
+        std::string input;
         std::getline(std::cin, input);
 
         vector<string> tokens = split(input, ' ');
+
         if (tokens.empty()) continue;
 
         validCommands cmd = isValid(tokens[0]);
@@ -171,7 +193,7 @@ int main() {
                 handle_echo(tokens);
                 break;
             case cd:
-                handle_cd(tokens);
+                handle_cd(tokens, current_directory);
                 break;
             case exit0:
                 return 0;
@@ -179,12 +201,12 @@ int main() {
                 handle_type(tokens);
                 break;
             case pwd:
-                handle_pwd();
+                std::cout << current_directory << std::endl;
                 break;
-            case invalid:
             default:
-                std::cerr << "Invalid command" << std::endl;
+                std::cout << input << ": command not found" << std::endl;
         }
     }
+
     return 0;
 }
