@@ -135,5 +135,5 @@ Contributions are welcome! To contribute:
 XShell is licensed under the MIT License. See `LICENSE` for more details.
 
 ## 📬 Contact
-For questions or support, reach out via [your email] or open an issue on GitHub.
+For questions or support, reach out via gourabsen.21.2001@gmail.com or open an issue on GitHub.
 
