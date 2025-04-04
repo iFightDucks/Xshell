@@ -9,6 +9,7 @@ Ensure you have the following dependencies installed:
 - GCC or Clang
 - Make
 - POSIX-compliant system (Linux, macOS, BSD)
+- For Windows: MinGW or Windows Subsystem for Linux (WSL)
 
 ### Build and Install
 ```sh
@@ -22,6 +23,7 @@ make
 # Install (optional)
 sudo make install
 ```
+gg  
 
 ## 🖥️ REPL (Read-Eval-Print Loop)
 Run XShell with:
@@ -136,4 +138,14 @@ XShell is licensed under the MIT License. See `LICENSE` for more details.
 
 ## 📬 Contact
 For questions or support, reach out via gourabsen.21.2001@gmail.com or open an issue on GitHub.
+
+## 🔧 Troubleshooting
+### Common Issues
+- **Command not found**: Ensure the shell executable is in your PATH
+- **Permission denied**: Make sure the executable has proper permissions (`chmod +x xshell`)
+- **Build errors**: Verify all dependencies are installed and up to date
+
+### Windows-specific Issues
+- When using MinGW, you may need to use `mingw32-make` instead of `make`
+- In WSL, ensure you're using a compatible Linux distribution
 
